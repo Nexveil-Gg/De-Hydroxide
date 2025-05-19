@@ -5,7 +5,7 @@ if oh then
 end
 
 local web = true
-local user = "Hosvile" -- change if you're using a fork
+local user = "ryte-e" -- change if you're using a fork
 local branch = "revision"
 local importCache = {}
 
@@ -81,6 +81,11 @@ local oldGetUpvalue = globalMethods.getUpvalue
 local oldGetUpvalues = globalMethods.getUpvalues
 
 globalMethods.getUpvalue = function(closure, index)
+    -- CClosure kontrolü ekliyoruz (C fonksiyonlarında çalışmasın)
+    if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
+        return nil
+    end
+
     if type(closure) == "table" then
         return oldGetUpvalue(closure.Data, index)
     end
@@ -89,6 +94,11 @@ globalMethods.getUpvalue = function(closure, index)
 end
 
 globalMethods.getUpvalues = function(closure)
+    -- CClosure kontrolü ekliyoruz
+    if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
+        return {}
+    end
+
     if type(closure) == "table" then
         return oldGetUpvalues(closure.Data)
     end
