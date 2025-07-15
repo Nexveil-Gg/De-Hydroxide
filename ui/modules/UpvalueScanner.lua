@@ -1,24 +1,3 @@
-function toString(value)
-    local valueType = typeof(value)
-
-    if valueType == "Instance" then
-        return value:GetFullName()
-    elseif valueType == "table" then
-        return "table: 0x" .. tostring(value):match("0x%x+")
-    elseif valueType == "function" then
-        local info = debug.getinfo(value)
-        return string.format("function: %s:%d", info.short_src, info.linedefined)
-    elseif valueType == "Connection" then
-        return "Connection"
-    elseif valueType == "thread" then
-        return "thread"
-    elseif value == nil then
-        return "nil"
-    else
-        return tostring(value)
-    end
-end
-
 local RunService = game:GetService("RunService")
 local TextService = game:GetService("TextService")
 
@@ -184,7 +163,7 @@ local function addUpvalue(upvalue, temporary)
                 local elementLog = addElement(upvalueLog, upvalue, i, v)
                 elementLog.Parent = upvalueLog.Elements
                 
-                height = height + elementLog.AbsoluteSize.Y + 5
+                height = height + elementLog.Size.Y.Offset + 5
             end
         end
 
