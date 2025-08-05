@@ -180,13 +180,17 @@ local function addUpvalue(upvalue, temporary)
         end
 
         if not temporary then
-            for i, v in pairs(upvalue.Scanned) do
-                local elementLog = addElement(upvalueLog, upvalue, i, v)
-                elementLog.Parent = upvalueLog.Elements
-                
-                height = height + elementLog.AbsoluteSize.Y + 5
-            end
-        end
+    for i, v in pairs(upvalue.Scanned) do
+        local elementLog = addElement(upvalueLog, upvalue, i, v)
+        elementLog.Parent = upvalueLog.Elements
+        
+        -- Wait for render to finish
+        task.wait() -- (ya da RunService.Heartbeat:Wait())
+
+        height = height + elementLog.AbsoluteSize.Y + 5
+    end
+end
+
 
         upvalueLog.Size = UDim2.new(1, 0, 0, height)
     else
