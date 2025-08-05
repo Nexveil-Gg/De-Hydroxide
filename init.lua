@@ -80,12 +80,14 @@ end
 
 local oldGetUpvalue = globalMethods.getUpvalue
 local oldGetUpvalues = globalMethods.getUpvalues
+local oldSetUpvalue = globalMethods.setUpvalue
 
+-- ✅ Hatalı closure tiplerini kontrol ederek override
 globalMethods.getUpvalue = function(closure, index)
     if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
         return nil
     end
-    if type(closure) == "table" then
+    if type(closure) == "table" and closure.Data then
         return oldGetUpvalue(closure.Data, index)
     end
     return oldGetUpvalue(closure, index)
@@ -95,11 +97,22 @@ globalMethods.getUpvalues = function(closure)
     if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
         return {}
     end
-    if type(closure) == "table" then
+    if type(closure) == "table" and closure.Data then
         return oldGetUpvalues(closure.Data)
     end
     return oldGetUpvalues(closure)
 end
+
+-- ✅ Bu satır hatayı düzelten kısımdır:
+globalMethods.setUpvalue = function(closure, index, value)
+    if type(closure) == "table" and closure.Data then
+        return oldSetUpvalue(closure.Data, index, value)
+    end
+    return oldSetUpvalue(closure, index, value)
+end
+
+-- ✅ Aynı fonksiyonu updateUpvalue olarak da kullan
+globalMethods.updateUpvalue = globalMethods.setUpvalue
 
 environment.hasMethods = hasMethods
 environment.oh = {
@@ -253,6 +266,7 @@ if readFile and writeFile then
     useMethods({ import = environment.import })
 end
 
+-- ⬇️ Bu satırlar artık hatasız çalışmalı
 useMethods(import("methods/string"))
 useMethods(import("methods/table"))
 useMethods(import("methods/userdata"))
