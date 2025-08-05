@@ -82,7 +82,6 @@ local oldGetUpvalue = globalMethods.getUpvalue
 local oldGetUpvalues = globalMethods.getUpvalues
 local oldSetUpvalue = globalMethods.setUpvalue
 
--- ✅ Hatalı closure tiplerini kontrol ederek override
 globalMethods.getUpvalue = function(closure, index)
     if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
         return nil
@@ -103,7 +102,6 @@ globalMethods.getUpvalues = function(closure)
     return oldGetUpvalues(closure)
 end
 
--- ✅ Bu satır hatayı düzelten kısımdır:
 globalMethods.setUpvalue = function(closure, index, value)
     if type(closure) == "table" and closure.Data then
         return oldSetUpvalue(closure.Data, index, value)
@@ -111,7 +109,6 @@ globalMethods.setUpvalue = function(closure, index, value)
     return oldSetUpvalue(closure, index, value)
 end
 
--- ✅ Aynı fonksiyonu updateUpvalue olarak da kullan
 globalMethods.updateUpvalue = globalMethods.setUpvalue
 
 environment.hasMethods = hasMethods
@@ -266,7 +263,6 @@ if readFile and writeFile then
     useMethods({ import = environment.import })
 end
 
--- ⬇️ Bu satırlar artık hatasız çalışmalı
 useMethods(import("methods/string"))
 useMethods(import("methods/table"))
 useMethods(import("methods/userdata"))
