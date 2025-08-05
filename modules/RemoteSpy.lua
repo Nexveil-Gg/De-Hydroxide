@@ -49,43 +49,44 @@ local function connectEvent(callback)
 end
 
 local nmcTrampoline
-nmcTrampoline = hookMetaMethod(game, "__namecall", function(self,...)
-    local args = {...}
+nmcTrampoline = hookMetaMethod(game, "__namecall", function(...)
+    local instance = ...
     
-    if typeof(self) ~= "Instance" then
-        return nmcTrampoline(self,...)
+    if typeof(instance) ~= "Instance" then
+        return nmcTrampoline(...)
     end
 
-    local method = getNamecallMethod():lower()
+    local method = getNamecallMethod()
 
-    if method == "fireserver" then
+    if method == "fireServer" then
         method = "FireServer"
-    elseif method == "invokeserver" then
+    elseif method == "invokeServer" then
         method = "InvokeServer"
     end
         
-    if remotesViewing[self.ClassName] and self ~= remoteDataEvent and remoteMethods[method] then
-        local remote = currentRemotes[self]
+    if remotesViewing[instance.ClassName] and instance ~= remoteDataEvent and remoteMethods[method] then
+        local remote = currentRemotes[instance]
+        local vargs = {select(2, ...)}
             
         if not remote then
-            remote = Remote.new(self)
-            currentRemotes[self] = remote
+            remote = Remote.new(instance)
+            currentRemotes[instance] = remote
         end
 
         local remoteIgnored = remote.Ignored
         local remoteBlocked = remote.Blocked
-        local argsIgnored = remote.AreArgsIgnored(remote, args)
-        local argsBlocked = remote.AreArgsBlocked(remote, args)
+        local argsIgnored = remote.AreArgsIgnored(remote, vargs)
+        local argsBlocked = remote.AreArgsBlocked(remote, vargs)
 
         if eventSet and (not remoteIgnored and not argsIgnored) then
             local call = {
                 script = getCallingScript((PROTOSMASHER_LOADED ~= nil and 2) or nil),
-                args = args,
+                args = vargs,
                 func = getInfo(3).func
             }
 
             remote.IncrementCalls(remote, call)
-            remoteDataEvent.Fire(remoteDataEvent, self, call)
+            remoteDataEvent.Fire(remoteDataEvent, instance, call)
         end
 
         if remoteBlocked or argsBlocked then
@@ -93,59 +94,60 @@ nmcTrampoline = hookMetaMethod(game, "__namecall", function(self,...)
         end
     end
 
-    return nmcTrampoline(self,...)
+    return nmcTrampoline(...)
 end)
 
 -- vuln fix
 
 local pcall = pcall
 
-local function checkPermission(self)
-    if (self.ClassName) then end
+local function checkPermission(instance)
+    if (instance.ClassName) then end
 end
 
 for _name, hook in pairs(methodHooks) do
     local originalMethod
-    originalMethod = hookFunction(hook, newCClosure(function(self,...)
-        local args = {...}
+    originalMethod = hookFunction(hook, newCClosure(function(...)
+        local instance = ...
 
-        if typeof(args) ~= "Instance" then
-            return originalMethod(self,...)
+        if typeof(instance) ~= "Instance" then
+            return originalMethod(...)
         end
                 
         do
-            local success = pcall(checkPermission, args)
-            if (not success) then return originalMethod(self,...) end
+            local success = pcall(checkPermission, instance)
+            if (not success) then return originalMethod(...) end
         end
 
-        if args.ClassName == _name and remotesViewing[args.ClassName] and self ~= remoteDataEvent then
-            local remote = currentRemotes[self]
+        if instance.ClassName == _name and remotesViewing[instance.ClassName] and instance ~= remoteDataEvent then
+            local remote = currentRemotes[instance]
+            local vargs = {select(2, ...)}
 
             if not remote then
-                remote = Remote.new(self)
-                currentRemotes[self] = remote
+                remote = Remote.new(instance)
+                currentRemotes[instance] = remote
             end
 
             local remoteIgnored = remote.Ignored 
-            local argsIgnored = remote:AreArgsIgnored(args)
+            local argsIgnored = remote:AreArgsIgnored(vargs)
             
             if eventSet and (not remoteIgnored and not argsIgnored) then
                 local call = {
                     script = getCallingScript((PROTOSMASHER_LOADED ~= nil and 2) or nil),
-                    args = args,
+                    args = vargs,
                     func = getInfo(3).func
                 }
     
                 remote:IncrementCalls(call)
-                remoteDataEvent:Fire(self, call)
+                remoteDataEvent:Fire(instance, call)
             end
 
-            if remote.Blocked or remote:AreArgsBlocked(args) then
+            if remote.Blocked or remote:AreArgsBlocked(vargs) then
                 return
             end
         end
         
-        return originalMethod(self,...)
+        return originalMethod(...)
     end))
 
     oh.Hooks[originalMethod] = hook
