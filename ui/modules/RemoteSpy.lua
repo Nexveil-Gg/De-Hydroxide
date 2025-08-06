@@ -514,7 +514,12 @@ ListSearch.FocusLost:Connect(function(returned)
     if returned then
         for remoteInstance, log in pairs(currentLogs) do
             local instance = log.Button.Instance
-            instance.Visible = not (instance.Visible and not remoteInstance.Name:lower():find(ListSearch.Text))
+
+            local success, result = pcall(function()
+                return remoteInstance.Name:lower():find(ListSearch.Text:lower())
+            end)
+
+            instance.Visible = success and result ~= nil
         end
 
         remoteList:Recalculate()
