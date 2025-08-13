@@ -27,7 +27,29 @@ local ClosureSpy = import("modules/ClosureSpy")
 local Methods = import("modules/UpvalueScanner")
 
 if not hasMethods(Methods.RequiredMethods) then
-    return UpvalueScanner
+    
+-- Patch: Scroll sırasında görünmeyen UI elemanlarını yok etme
+local function cleanInvisibleItems()
+    local clipFrame = ResultsClip.Content
+    local scrollPos = upvalueList.Instance.CanvasPosition.Y
+    local viewHeight = upvalueList.Instance.AbsoluteWindowSize.Y or upvalueList.Instance.AbsoluteSize.Y
+
+    for _, child in ipairs(clipFrame:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextButton") then
+            local yPos = child.AbsolutePosition.Y - clipFrame.AbsolutePosition.Y
+            local yEnd = yPos + child.AbsoluteSize.Y
+
+            -- Görünür alanın dışında kalan elemanlar yok ediliyor
+            if (yEnd < scrollPos - 50) or (yPos > scrollPos + viewHeight + 50) then
+                child:Destroy()
+            end
+        end
+    end
+end
+
+upvalueList.Instance:GetPropertyChangedSignal("CanvasPosition"):Connect(cleanInvisibleItems)
+
+return UpvalueScanner
 end
 
 local Upvalue = import("objects/Upvalue")
@@ -685,5 +707,24 @@ oh.Events.UpdateUpvalues = RunService.Heartbeat:Connect(function()
         closureLog:Update()
     end
 end)
+
+local function cleanInvisibleItems()
+    local clipFrame = ResultsClip.Content
+    local scrollPos = upvalueList.Instance.CanvasPosition.Y
+    local viewHeight = upvalueList.Instance.AbsoluteWindowSize.Y or upvalueList.Instance.AbsoluteSize.Y
+
+    for _, child in ipairs(clipFrame:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextButton") then
+            local yPos = child.AbsolutePosition.Y - clipFrame.AbsolutePosition.Y
+            local yEnd = yPos + child.AbsoluteSize.Y
+
+            if (yEnd < scrollPos - 50) or (yPos > scrollPos + viewHeight + 50) then
+                child:Destroy()
+            end
+        end
+    end
+end
+
+upvalueList.Instance:GetPropertyChangedSignal("CanvasPosition"):Connect(cleanInvisibleItems)
 
 return UpvalueScanner 
