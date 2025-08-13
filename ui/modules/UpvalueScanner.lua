@@ -28,7 +28,7 @@ local Methods = import("modules/UpvalueScanner")
 
 if not hasMethods(Methods.RequiredMethods) then
     
--- Patch: Scroll sırasında görünmeyen UI elemanlarını yok etme
+
 local function cleanInvisibleItems()
     local clipFrame = ResultsClip.Content
     local scrollPos = upvalueList.Instance.CanvasPosition.Y
@@ -38,8 +38,6 @@ local function cleanInvisibleItems()
         if child:IsA("Frame") or child:IsA("TextButton") then
             local yPos = child.AbsolutePosition.Y - clipFrame.AbsolutePosition.Y
             local yEnd = yPos + child.AbsoluteSize.Y
-
-            -- Görünür alanın dışında kalan elemanlar yok ediliyor
             if (yEnd < scrollPos - 50) or (yPos > scrollPos + viewHeight + 50) then
                 child:Destroy()
             end
@@ -125,6 +123,14 @@ local constants = {
     tempBorderColor = Color3.fromRGB(20, 0, 0)
 }
 
+local function clearAllUpvalueItems()
+    local clipFrame = ResultsClip.Content
+    for _, child in ipairs(clipFrame:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+end
 local function typeMismatchMessage()
     MessageBox.Show("Error", 
         "Value does not match selected type",
@@ -206,8 +212,8 @@ local function addUpvalue(upvalue, temporary)
         local elementLog = addElement(upvalueLog, upvalue, i, v)
         elementLog.Parent = upvalueLog.Elements
         
-        -- Wait for render to finish
-        task.wait() -- (ya da RunService.Heartbeat:Wait())
+
+        task.wait() 
 
         height = height + elementLog.AbsoluteSize.Y + 5
     end
@@ -343,6 +349,7 @@ function Log.update(log)
 end
 
 local function addUpvalues()
+    clearAllUpvalueItems() 
     local query = SearchBox.Text
 
     if query:gsub(' ', '') ~= '' then
