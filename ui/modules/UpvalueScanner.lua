@@ -28,16 +28,18 @@ local Methods = import("modules/UpvalueScanner")
 
 if not hasMethods(Methods.RequiredMethods) then
     
-
+-- Patch: Scroll sırasında görünmeyen UI elemanlarını yok etme
 local function cleanInvisibleItems()
     local clipFrame = ResultsClip.Content
     local scrollPos = upvalueList.Instance.CanvasPosition.Y
     local viewHeight = upvalueList.Instance.AbsoluteWindowSize.Y or upvalueList.Instance.AbsoluteSize.Y
 
     for _, child in ipairs(clipFrame:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextButton") then
+        if (child:IsA("Frame") or child:IsA("TextButton")) and child.Visible then
             local yPos = child.AbsolutePosition.Y - clipFrame.AbsolutePosition.Y
             local yEnd = yPos + child.AbsoluteSize.Y
+
+            -- Görünür alanın dışında kalan elemanlar yok ediliyor
             if (yEnd < scrollPos - 50) or (yPos > scrollPos + viewHeight + 50) then
                 child:Destroy()
             end
@@ -45,6 +47,7 @@ local function cleanInvisibleItems()
     end
 end
 
+-- Scroll değişiminde çalıştır
 upvalueList.Instance:GetPropertyChangedSignal("CanvasPosition"):Connect(cleanInvisibleItems)
 
 return UpvalueScanner
@@ -123,10 +126,12 @@ local constants = {
     tempBorderColor = Color3.fromRGB(20, 0, 0)
 }
 
+
+-- Patch: Liste tamamen yenilenirken tüm eski UI elemanlarını temizleme
 local function clearAllUpvalueItems()
     local clipFrame = ResultsClip.Content
     for _, child in ipairs(clipFrame:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextButton") then
+        if (child:IsA("Frame") or child:IsA("TextButton")) and child.Visible then
             child:Destroy()
         end
     end
@@ -212,8 +217,8 @@ local function addUpvalue(upvalue, temporary)
         local elementLog = addElement(upvalueLog, upvalue, i, v)
         elementLog.Parent = upvalueLog.Elements
         
-
-        task.wait() 
+        -- Wait for render to finish
+        task.wait() -- (ya da RunService.Heartbeat:Wait())
 
         height = height + elementLog.AbsoluteSize.Y + 5
     end
@@ -349,7 +354,7 @@ function Log.update(log)
 end
 
 local function addUpvalues()
-    clearAllUpvalueItems() 
+    clearAllUpvalueItems() -- tüm eski elemanlar temizlensin
     local query = SearchBox.Text
 
     if query:gsub(' ', '') ~= '' then
@@ -715,16 +720,19 @@ oh.Events.UpdateUpvalues = RunService.Heartbeat:Connect(function()
     end
 end)
 
+
+-- Patch: Scroll sırasında görünmeyen UI elemanlarını yok etme
 local function cleanInvisibleItems()
     local clipFrame = ResultsClip.Content
     local scrollPos = upvalueList.Instance.CanvasPosition.Y
     local viewHeight = upvalueList.Instance.AbsoluteWindowSize.Y or upvalueList.Instance.AbsoluteSize.Y
 
     for _, child in ipairs(clipFrame:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextButton") then
+        if (child:IsA("Frame") or child:IsA("TextButton")) and child.Visible then
             local yPos = child.AbsolutePosition.Y - clipFrame.AbsolutePosition.Y
             local yEnd = yPos + child.AbsoluteSize.Y
 
+            -- Görünür alanın dışında kalan elemanlar yok ediliyor
             if (yEnd < scrollPos - 50) or (yPos > scrollPos + viewHeight + 50) then
                 child:Destroy()
             end
@@ -732,6 +740,7 @@ local function cleanInvisibleItems()
     end
 end
 
+-- Scroll değişiminde çalıştır
 upvalueList.Instance:GetPropertyChangedSignal("CanvasPosition"):Connect(cleanInvisibleItems)
 
 return UpvalueScanner 
