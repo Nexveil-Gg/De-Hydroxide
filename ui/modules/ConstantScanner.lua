@@ -43,7 +43,8 @@ local constants = {
 
 constantList:BindContextMenu(ContextMenu.new({ spyClosureContext, viewConstantsContext, getScriptContext, changeConstantContext }))
 
-local modifyConstant = Prompt.new(Page.Prompts.ModifyConstant)
+-- ModifyUpvalue prompt kullanılıyor
+local modifyConstant = Prompt.new(Page.Prompts.ModifyUpvalue)
 local modifyConstantInner = modifyConstant.Instance.Inner
 local modifyConstantContent = modifyConstantInner.Content
 local modifyConstantButtons = modifyConstantInner.Buttons.SetCancel
@@ -107,12 +108,12 @@ local function addConstant(constant, temporary)
     constantLog.Value.TextColor3 = oh.Constants.Syntax[valueType]
     constantLog.Icon.Image = oh.Constants.Types[valueType]
 
-    -- MouseButton1Click ve basili tutma mobil desteği
+    -- Basılı tutma mobil/PC
     constantLog.MouseButton1Click:Connect(function()
         pressHold = true
         selectedConstant = constant
         selectedConstantLog = constantLog
-        task.delay(0.5, function() -- 0.5 saniye basılı tutunca Prompt aç
+        task.delay(0.5, function()
             if pressHold and selectedConstant then
                 modifyConstant:Show()
             end
