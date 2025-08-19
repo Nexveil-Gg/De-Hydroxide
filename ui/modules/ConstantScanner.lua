@@ -73,13 +73,27 @@ local function addConstant(constant, temporary)
     constantLog.Value.TextColor3 = oh.Constants.Syntax[valueType]
     constantLog.Icon.Image = oh.Constants.Types[valueType]
 
-    -- Sağ tık veya basılı tutma → constant seç
+    -- Sağ tık (PC)
     constantLog.MouseButton2Click:Connect(function()
         selectedConstant = constant
+        ContextMenu.new({ changeConstantContext }):Show()
     end)
-    constantLog.MouseButton1Click:Connect(function()
-        if pressHold then
-            selectedConstant = constant
+
+    -- Mobil uzun basma (long press)
+    local pressStart = 0
+    constantLog.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            pressStart = tick()
+        end
+    end)
+
+    constantLog.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            local heldTime = tick() - pressStart
+            if heldTime > 0.5 then -- yarım saniye üstü basılı tutunca
+                selectedConstant = constant
+                ContextMenu.new({ changeConstantContext }):Show()
+            end
         end
     end)
 
@@ -191,7 +205,7 @@ modifyConstant.Instance.Inner.Buttons.SetCancel.Cancel.MouseButton1Click:Connect
     modifyConstant:Hide()
 end)
 
--- Kalan orijinal callback’ler (spyClosureContext, viewConstantsContext, getScriptContext) sende zaten var
+-- Arama
 Search.MouseButton1Click:Connect(addConstants)
 SearchBox.FocusLost:Connect(function(returned)
     if returned then
