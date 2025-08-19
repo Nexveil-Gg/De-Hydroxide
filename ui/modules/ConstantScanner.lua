@@ -1,4 +1,3 @@
-print("8888")
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -44,7 +43,6 @@ local constants = {
 
 constantList:BindContextMenu(ContextMenu.new({ spyClosureContext, viewConstantsContext, getScriptContext, changeConstantContext }))
 
--- ModifyUpvalue prompt kullanılıyor
 local modifyConstant = Prompt.new(Page.Prompts.ModifyUpvalue)
 local modifyConstantInner = modifyConstant.Instance.Inner
 local modifyConstantContent = modifyConstantInner.Content
@@ -90,7 +88,7 @@ local function addConstant(constant, temporary)
     local index = constant.Index
     local value = constant.Value
     local valueType = type(value)
-    local valueText = toString(value)
+    local valueText = tostring(value)
 
     if temporary then
         constantLog.ImageColor3 = constants.tempConstantColor
@@ -101,7 +99,7 @@ local function addConstant(constant, temporary)
         local closureName = getInfo(value).name or ''
         constantLog.Value.Text = (closureName == '' and "Unnamed function") or closureName
     else
-        constantLog.Value.Text = toString(value)
+        constantLog.Value.Text = valueText
     end
 
     constantLog.Name = index
@@ -116,6 +114,7 @@ local function addConstant(constant, temporary)
         selectedConstantLog = constantLog
         task.delay(0.5, function()
             if pressHold and selectedConstant then
+                modifyConstantValue.Text = tostring(selectedConstant.Value)
                 modifyConstant:Show()
             end
         end)
@@ -125,10 +124,12 @@ local function addConstant(constant, temporary)
         pressHold = false
     end)
 
+    -- Sağ tık açma
     constantLog.MouseButton2Click:Connect(function()
         selectedConstant = constant
         selectedConstantLog = constantLog
-        changeConstantContext:Show()
+        modifyConstantValue.Text = tostring(selectedConstant.Value)
+        modifyConstant:Show()
     end)
 
     return constantLog
@@ -169,22 +170,17 @@ end
 
 local function addConstants()
     local query = SearchBox.Text
-
     if query:gsub(' ', '') ~= '' then
         if not tonumber(query) and query:len() <= 1 then return end
-
         constantList:Clear()
         constantLogs = {}
-
         for _i, closure in pairs(Methods.Scan(query)) do
             Log.new(closure)
         end
-
         constantList:Recalculate()
     else
         MessageBox.Show("Invalid query", "Your query is too short", MessageType.OK)
     end
-
     SearchBox.Text = ''
 end
 
@@ -227,32 +223,27 @@ viewConstantsContext:SetCallback(function()
                 newHeight = newHeight - (constantLog.AbsoluteSize.Y + 5)
                 constantLog:Destroy()
             end
-
             selectedLog.TemporaryConstants = nil
             selectedLog.Closure.TemporaryConstants = {}
         else
             local closure = selectedLog.Closure
             temporaryConstants = {}
-
             for i,v in pairs(getConstants(closure.Data)) do
                 if not closure.Constants[i] then
                     local constant = Constant.new(closure, i, v)
                     local constantLog = addConstant(constant, true)
                     constantLog.Parent = instance.Constants
-
                     newHeight = newHeight + constantLog.AbsoluteSize.Y + 5
                     temporaryConstants[i] = constantLog
                     closure.TemporaryConstants[i] = constant
                 end
             end
-
             selectedLog.TemporaryConstants = temporaryConstants
         end
 
         newHeight = UDim2.new(0, 0, 0, newHeight)
         instance.Constants.Size = instance.Constants.Size + newHeight
         instance.Size = instance.Size + newHeight
-
         constantList:Recalculate()
     end
 end)
