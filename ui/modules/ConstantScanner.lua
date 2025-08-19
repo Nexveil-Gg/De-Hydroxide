@@ -1,5 +1,6 @@
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local ConstantScanner = {}
 local ClosureSpy = import("modules/ClosureSpy")
@@ -14,6 +15,7 @@ local List, ListButton = import("ui/controls/List")
 local MessageBox, MessageType = import("ui/controls/MessageBox")
 local ContextMenu, ContextMenuButton = import("ui/controls/ContextMenu")
 local TabSelector = import("ui/controls/TabSelector")
+local Prompt = import("ui/controls/Prompt")
 
 local Page = import("rbxassetid://11389137937").Base.Body.Pages.ConstantScanner
 local Assets = import("rbxassetid://5042114982").ConstantScanner
@@ -24,20 +26,62 @@ local SearchBox = Query.Query
 
 local constantList = List.new(Page.Results.Clip.Content)
 local constantLogs = {}
-local selectedLog 
+local selectedLog
 local selectedConstant
 local selectedConstantLog
+local pressHold = false
 
 local spyClosureContext = ContextMenuButton.new("rbxassetid://4666593447", "Spy Closure")
 local viewConstantsContext = ContextMenuButton.new("rbxassetid://5179169654", "View All Constants")
 local getScriptContext = ContextMenuButton.new("rbxassetid://4891705738", "Get Script Path")
+local changeConstantContext = ContextMenuButton.new("rbxassetid://5458573463", "Change Constant")
 
 local constants = {
     tempConstantColor = Color3.fromRGB(40, 20, 20),
     tempBorderColor = Color3.fromRGB(20, 0, 0)
 }
 
-constantList:BindContextMenu(ContextMenu.new({ spyClosureContext, viewConstantsContext, getScriptContext }))
+constantList:BindContextMenu(ContextMenu.new({ spyClosureContext, viewConstantsContext, getScriptContext, changeConstantContext }))
+
+local modifyConstant = Prompt.new(Page.Prompts.ModifyConstant)
+local modifyConstantInner = modifyConstant.Instance.Inner
+local modifyConstantContent = modifyConstantInner.Content
+local modifyConstantButtons = modifyConstantInner.Buttons.SetCancel
+local modifyConstantValue = modifyConstantContent.Value.Input
+
+local function setValue(valueText, value)
+    local raw = valueText
+    local valueType = typeof(value)
+    local newValue
+
+    if valueType == "string" then
+        newValue = raw
+    elseif valueType == "number" then
+        local convert = tonumber(raw)
+        if convert then
+            newValue = convert
+        else
+            MessageBox.Show("Error", "Value does not match selected type", MessageType.OK)
+        end
+    elseif valueType == "boolean" then
+        if raw == "true" then
+            newValue = true
+        elseif raw == "false" then
+            newValue = false
+        else
+            MessageBox.Show("Error", "Value does not match selected type", MessageType.OK)
+        end
+    else
+        local success, result = pcall(loadstring("return " .. raw))
+        if success and typeof(result) == valueType then
+            newValue = result
+        else
+            MessageBox.Show("Error", "There is an error in your input", MessageType.OK)
+        end
+    end
+
+    return newValue
+end
 
 local function addConstant(constant, temporary)
     local constantLog = Assets.Constant:Clone()
@@ -63,31 +107,26 @@ local function addConstant(constant, temporary)
     constantLog.Value.TextColor3 = oh.Constants.Syntax[valueType]
     constantLog.Icon.Image = oh.Constants.Types[valueType]
 
-    -- PC sağ tık
+    -- MouseButton1Click ve basili tutma mobil desteği
+    constantLog.MouseButton1Click:Connect(function()
+        pressHold = true
+        selectedConstant = constant
+        selectedConstantLog = constantLog
+        task.delay(0.5, function() -- 0.5 saniye basılı tutunca Prompt aç
+            if pressHold and selectedConstant then
+                modifyConstant:Show()
+            end
+        end)
+    end)
+
+    constantLog.MouseButton1Up:Connect(function()
+        pressHold = false
+    end)
+
     constantLog.MouseButton2Click:Connect(function()
         selectedConstant = constant
         selectedConstantLog = constantLog
-        -- Show context menu veya prompt
-    end)
-
-    -- Mobil basılı tutma
-    local holdThreshold = 0.5
-    constantLog.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            local startTime = tick()
-            local holdConnection
-            holdConnection = UserInputService.TouchEnded:Connect(function(endInput)
-                if endInput == input then
-                    local duration = tick() - startTime
-                    if duration >= holdThreshold then
-                        selectedConstant = constant
-                        selectedConstantLog = constantLog
-                        -- Show context menu veya prompt
-                    end
-                    holdConnection:Disconnect()
-                end
-            end)
-        end
+        changeConstantContext:Show()
     end)
 
     return constantLog
@@ -98,11 +137,11 @@ local Log = {}
 function Log.new(closure)
     local log = {}
     local button = Assets.ClosureLog:Clone()
-    local listButton = ListButton.new(button, constantList) 
-    local constantsData = closure.Constants
+    local listButton = ListButton.new(button, constantList)
+    local constants = closure.Constants
     local logHeight = 30
 
-    for _i, constant in pairs(constantsData) do
+    for _i, constant in pairs(constants) do
         local constantLog = addConstant(constant)
         constantLog.Parent = button.Constants
         logHeight = logHeight + constantLog.AbsoluteSize.Y + 5
@@ -120,9 +159,8 @@ function Log.new(closure)
     end)
 
     constantLogs[closure.Data] = log
-
     log.Closure = closure
-    log.Constants = constantsData
+    log.Constants = constants
     log.Button = listButton
     return log
 end
@@ -131,9 +169,7 @@ local function addConstants()
     local query = SearchBox.Text
 
     if query:gsub(' ', '') ~= '' then
-        if not tonumber(query) and query:len() <= 1 then
-            return
-        end
+        if not tonumber(query) and query:len() <= 1 then return end
 
         constantList:Clear()
         constantLogs = {}
@@ -150,24 +186,37 @@ local function addConstants()
     SearchBox.Text = ''
 end
 
-local SpyHook = ClosureSpy.Hook
+modifyConstantButtons.Set.MouseButton1Click:Connect(function()
+    if selectedConstant then
+        local newValue = setValue(modifyConstantValue.Text, selectedConstant.Value)
+        if newValue ~= nil then
+            selectedConstant:Set(newValue)
+            modifyConstantValue.Text = ""
+            modifyConstant:Hide()
+        end
+    end
+end)
+
+modifyConstantButtons.Cancel.MouseButton1Click:Connect(function()
+    modifyConstantValue.Text = ""
+    modifyConstant:Hide()
+end)
+
 spyClosureContext:SetCallback(function()
     local selectedClosure = selectedLog.Closure
-
     if TabSelector.SelectTab("ClosureSpy") then
-        local result = SpyHook.new(selectedClosure)
-
+        local result = ClosureSpy.Hook.new(selectedClosure)
         if result == false then
             MessageBox.Show("Already hooked", "You are already spying " .. selectedClosure.Name)
         elseif result == nil then
-            MessageBox.Show("Cannot hook", ('Cannot hook "%s" because there are no upvalues'):format(selectedClosure.Name))
+            MessageBox.Show("Cannot hook", ('Cannot hook "%s" because there are no constants'):format(selectedClosure.Name))
         end
     end
 end)
 
 viewConstantsContext:SetCallback(function()
     if selectedLog then
-        local temporaryConstants = selectedLog.TemporaryConstants 
+        local temporaryConstants = selectedLog.TemporaryConstants
         local instance = selectedLog.Button.Instance
         local newHeight = 0
 
@@ -185,7 +234,7 @@ viewConstantsContext:SetCallback(function()
 
             for i,v in pairs(getConstants(closure.Data)) do
                 if not closure.Constants[i] then
-                    local constant = Constant.new(closure, i, v) 
+                    local constant = Constant.new(closure, i, v)
                     local constantLog = addConstant(constant, true)
                     constantLog.Parent = instance.Constants
 
@@ -217,9 +266,7 @@ end)
 
 Search.MouseButton1Click:Connect(addConstants)
 SearchBox.FocusLost:Connect(function(returned)
-    if returned then
-        addConstants()
-    end
+    if returned then addConstants() end
 end)
 
 return ConstantScanner
