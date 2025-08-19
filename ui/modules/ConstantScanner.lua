@@ -73,13 +73,16 @@ local function addConstant(constant, temporary)
     constantLog.Value.TextColor3 = oh.Constants.Syntax[valueType]
     constantLog.Icon.Image = oh.Constants.Types[valueType]
 
-    -- Sağ tık (PC)
+    -- Menü (Change Constant)
+    local constantContextMenu = ContextMenu.new({ changeConstantContext })
+
+    -- PC sağ tık
     constantLog.MouseButton2Click:Connect(function()
         selectedConstant = constant
-        ContextMenu.new({ changeConstantContext }):Show()
+        constantContextMenu:Show()
     end)
 
-    -- Mobil uzun basma (long press)
+    -- Mobil uzun basma
     local pressStart = 0
     constantLog.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch then
@@ -90,9 +93,9 @@ local function addConstant(constant, temporary)
     constantLog.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch then
             local heldTime = tick() - pressStart
-            if heldTime > 0.5 then -- yarım saniye üstü basılı tutunca
+            if heldTime > 0.5 then
                 selectedConstant = constant
-                ContextMenu.new({ changeConstantContext }):Show()
+                constantContextMenu:Show()
             end
         end
     end)
