@@ -29,6 +29,7 @@ local selectedLog
 local spyClosureContext = ContextMenuButton.new("rbxassetid://4666593447", "Spy Closure")
 local viewConstantsContext = ContextMenuButton.new("rbxassetid://5179169654", "View All Constants")
 local getScriptContext = ContextMenuButton.new("rbxassetid://4891705738", "Get Script Path")
+local changeConstantContext = ContextMenuButton.new("rbxassetid://5458573463", "Change Constant")
 
 local constants = {
     tempConstantColor = Color3.fromRGB(40, 20, 20),
