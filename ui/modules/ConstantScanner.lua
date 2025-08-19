@@ -1,3 +1,4 @@
+print("8888")
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
