@@ -14,36 +14,47 @@ local List, ListButton = import("ui/controls/List")
 local MessageBox, MessageType = import("ui/controls/MessageBox")
 local ContextMenu, ContextMenuButton = import("ui/controls/ContextMenu")
 local TabSelector = import("ui/controls/TabSelector")
+local Prompt = import("ui/controls/Prompt")
 
 local Page = import("rbxassetid://11389137937").Base.Body.Pages.ConstantScanner
 local Assets = import("rbxassetid://5042114982").ConstantScanner
 
+local Base = import("rbxassetid://11389137937").Base
+local Prompts = Base.Prompts
+local modifyConstant = Prompt.new(Prompts.ModifyUpvalue) -- aynı prompt'u kullanıyoruz
+
 local Query = Page.Query
 local Search = Query.Search
 local SearchBox = Query.Query
- 
+
 local constantList = List.new(Page.Results.Clip.Content)
 local constantLogs = {}
-local selectedLog 
+local selectedLog
+local selectedConstant
 
 local spyClosureContext = ContextMenuButton.new("rbxassetid://4666593447", "Spy Closure")
 local viewConstantsContext = ContextMenuButton.new("rbxassetid://5179169654", "View All Constants")
-local getScriptContext = ContextMenuButton.new("rbxassetid://4891705738", "Get Script Path")
 local changeConstantContext = ContextMenuButton.new("rbxassetid://5458573463", "Change Constant")
+local getScriptContext = ContextMenuButton.new("rbxassetid://4891705738", "Get Script Path")
 
 local constants = {
     tempConstantColor = Color3.fromRGB(40, 20, 20),
     tempBorderColor = Color3.fromRGB(20, 0, 0)
 }
 
-constantList:BindContextMenu(ContextMenu.new({ spyClosureContext, viewConstantsContext, getScriptContext }))
+constantList:BindContextMenu(ContextMenu.new({
+    spyClosureContext,
+    viewConstantsContext,
+    changeConstantContext,
+    getScriptContext
+}))
 
+-- Constant log
 local function addConstant(constant, temporary)
     local constantLog = Assets.Constant:Clone()
     local index = constant.Index
     local value = constant.Value
     local valueType = type(value)
-    local valueText = toString(value)
 
     if temporary then
         constantLog.ImageColor3 = constants.tempConstantColor
@@ -62,17 +73,21 @@ local function addConstant(constant, temporary)
     constantLog.Value.TextColor3 = oh.Constants.Syntax[valueType]
     constantLog.Icon.Image = oh.Constants.Types[valueType]
 
-    -- constantLog.MouseButton1Click:Connect(function()
-    --     selectedConstant = constant
-    --     selectedConstantLog = constantLog
-    -- end)
+    -- Sağ tık veya basılı tutma → constant seç
+    constantLog.MouseButton2Click:Connect(function()
+        selectedConstant = constant
+    end)
+    constantLog.MouseButton1Click:Connect(function()
+        if pressHold then
+            selectedConstant = constant
+        end
+    end)
 
     return constantLog
 end
 
 -- Log Object
 local Log = {}
-
 function Log.new(closure)
     local log = {}
     local button = Assets.ClosureLog:Clone()
@@ -83,7 +98,6 @@ function Log.new(closure)
     for _i, constant in pairs(constants) do
         local constantLog = addConstant(constant)
         constantLog.Parent = button.Constants
-
         logHeight = logHeight + constantLog.AbsoluteSize.Y + 5
     end
 
@@ -106,7 +120,7 @@ function Log.new(closure)
     return log
 end
 
--- UI Functinoality
+-- UI Functionality
 local function addConstants()
     local query = SearchBox.Text
 
@@ -130,75 +144,54 @@ local function addConstants()
     SearchBox.Text = ''
 end
 
-local SpyHook = ClosureSpy.Hook
-spyClosureContext:SetCallback(function()
-    local selectedClosure = selectedLog.Closure
+-- Change Constant callback
+changeConstantContext:SetCallback(function()
+    if selectedLog and selectedConstant then
+        local index = selectedConstant.Index
+        local indexFrame = modifyConstant.Instance.Inner.Content.Index
+        local indexNumber = indexFrame.Number
+        local indexWidth = TextService:GetTextSize(
+            tostring(index), 18, "SourceSans", indexFrame.AbsoluteSize
+        ).X
 
-    if TabSelector.SelectTab("ClosureSpy") then
-        local result = SpyHook.new(selectedClosure)
+        indexNumber.Text = index
+        indexNumber.Size = UDim2.new(0, indexWidth, 0, 25)
 
-        if result == false then
-            MessageBox.Show("Already hooked", "You are already spying " .. selectedClosure.Name)
-        elseif result == nil then
-            MessageBox.Show("Cannot hook", ('Cannot hook "%s" because there are no upvalues'):format(selectedClosure.Name))
-        end
+        modifyConstant:Show()
     end
 end)
 
-viewConstantsContext:SetCallback(function()
-    if selectedLog then
-        local temporaryConstants = selectedLog.TemporaryConstants 
-        local instance = selectedLog.Button.Instance
-        local newHeight = 0
+-- Prompt "Set" butonu → debug.setconstant
+modifyConstant.Instance.Inner.Buttons.SetCancel.Set.MouseButton1Click:Connect(function()
+    if selectedLog and selectedConstant then
+        local closure = selectedLog.Closure.Data
+        local index = selectedConstant.Index
+        local raw = modifyConstant.Instance.Inner.Content.Value.Input.Text
+        local valueType = typeof(selectedConstant.Value)
+        local newValue
 
-        if temporaryConstants then
-            for _i, constantLog in pairs(temporaryConstants) do
-                newHeight = newHeight - (constantLog.AbsoluteSize.Y + 5)
-                constantLog:Destroy()
-            end
-
-            selectedLog.TemporaryConstants = nil
-            selectedLog.Closure.TemporaryConstants = {}
+        if valueType == "number" then
+            newValue = tonumber(raw)
+        elseif valueType == "boolean" then
+            newValue = (raw == "true")
         else
-            local closure = selectedLog.Closure
-
-            temporaryConstants = {}
-
-            for i,v in pairs(getConstants(closure.Data)) do
-                if not closure.Constants[i] then
-                    local constant = Constant.new(closure, i, v) 
-
-                    local constantLog = addConstant(constant, true)
-                    constantLog.Parent = instance.Constants
-                    
-                    newHeight = newHeight + constantLog.AbsoluteSize.Y + 5
-                    temporaryConstants[i] = constantLog
-                    closure.TemporaryConstants[i] = constant
-                end
-            end
-
-            selectedLog.TemporaryConstants = temporaryConstants
+            newValue = raw
         end
 
-        newHeight = UDim2.new(0, 0, 0, newHeight)
-
-        instance.Constants.Size = instance.Constants.Size + newHeight
-        instance.Size = instance.Size + newHeight
-
-        constantList:Recalculate()
-    end
-end)
-
-getScriptContext:SetCallback(function()
-    if selectedLog then
-        local script = getfenv(selectedLog.Closure.Data).script
-            
-        if typeof(script) == "Instance" then
-            setClipboard(getInstancePath(script))
+        if newValue ~= nil then
+            setConstant(closure, index, newValue)
+            modifyConstant:Hide()
         end
     end
 end)
 
+-- Prompt "Cancel" butonu
+modifyConstant.Instance.Inner.Buttons.SetCancel.Cancel.MouseButton1Click:Connect(function()
+    modifyConstant.Instance.Inner.Content.Value.Input.Text = ""
+    modifyConstant:Hide()
+end)
+
+-- Kalan orijinal callback’ler (spyClosureContext, viewConstantsContext, getScriptContext) sende zaten var
 Search.MouseButton1Click:Connect(addConstants)
 SearchBox.FocusLost:Connect(function(returned)
     if returned then
