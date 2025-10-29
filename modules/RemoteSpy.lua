@@ -1,4 +1,3 @@
--- RemoteSpy.lua
 local RemoteSpy = {}
 local Remote = import("objects/Remote")
 
@@ -24,9 +23,9 @@ local remoteMethods = {
 
 local remotesViewing = {
     RemoteEvent = true,
-    RemoteFunction = false,
-    BindableEvent = false,
-    BindableFunction = false
+    RemoteFunction = true,
+    BindableEvent = true,
+    BindableFunction = true
 }
 
 local methodHooks = {
@@ -40,39 +39,41 @@ local currentRemotes = {}
 local remoteDataEvent = Instance.new("BindableEvent")
 local eventSet = false
 
--- Utility getter once, so it doesn't become upvalue in closures
-local getNamecallMethod = getNamecallMethod
-local getCallingScript = getCallingScript
-local getInfo = getInfo
-local hookFunction = hookFunction
-local newCClosure = newCClosure
+local checkCaller = checkcaller
+local getNamecallMethod = getnamecallmethod
+local getCallingScript = getcallingscript
+local getInfo = debug.getinfo
+local newCClosure = newcclosure
+local hookFunction = hookfunction
+local hookMetaMethod = hookmetamethod
+local typeOf = typeof
 local pcall = pcall
 
--- Connect callback externally
 local function connectEvent(callback)
     remoteDataEvent.Event:Connect(callback)
-    if not eventSet then
-        eventSet = true
-    end
+    eventSet = true
 end
 
--- Handle remote call
-local function handleRemote(instance, method, vargs)
+local function getOrCreateRemote(instance)
     local remote = currentRemotes[instance]
-
     if not remote then
         remote = Remote.new(instance)
         currentRemotes[instance] = remote
     end
+    return remote
+end
+
+local function handleCall(instance, method, vargs)
+    local remote = getOrCreateRemote(instance)
 
     local remoteIgnored = remote.Ignored
-    local remoteBlocked = remote.Blocked
     local argsIgnored = remote:AreArgsIgnored(vargs)
     local argsBlocked = remote:AreArgsBlocked(vargs)
+    local remoteBlocked = remote.Blocked
 
-    if eventSet and not remoteIgnored and not argsIgnored then
+    if eventSet and (not remoteIgnored and not argsIgnored) then
         local call = {
-            script = getCallingScript((PROTOSMASHER_LOADED ~= nil and 2) or nil),
+            script = getCallingScript((PROTOSMASHER_LOADED and 2) or nil),
             args = vargs,
             func = getInfo(3).func
         }
@@ -82,85 +83,74 @@ local function handleRemote(instance, method, vargs)
     end
 
     if remoteBlocked or argsBlocked then
-        return true -- Block the call
+        return true
     end
 
-    return false -- Allow the call
+    return false
 end
 
--- Hook __namecall
-local function setupNamecallHook()
-    local original
-    original = hookmetamethod(game, "__namecall", newCClosure(function(self, ...)
-        if not checkcaller() and typeof(self) == "Instance" then
-            local method = getNamecallMethod()
-
-            if method == "fireServer" then method = "FireServer"
-            elseif method == "invokeServer" then method = "InvokeServer" end
-
-            if remotesViewing[self.ClassName] and remoteMethods[method] and self ~= remoteDataEvent then
-                local args = { ... }
-                table.remove(args, 1) -- remove instance
-
-                if handleRemote(self, method, args) then
-                    return nil -- Blocked
-                end
-            end
-        end
-
-        return original(self, ...)
-    end))
+local function isValidRemote(instance)
+    return typeOf(instance) == "Instance" and remotesViewing[instance.ClassName] and instance ~= remoteDataEvent
 end
 
--- Permission check function
+local nmcTrampoline = nil
+nmcTrampoline = hookMetaMethod(game, "__namecall", newCClosure(function(...)
+    if checkCaller() then
+        return nmcTrampoline(...)
+    end
+
+    local instance = ...
+    if not isValidRemote(instance) then
+        return nmcTrampoline(...)
+    end
+
+    local method = getNamecallMethod()
+    if method == "fireServer" then
+        method = "FireServer"
+    elseif method == "invokeServer" then
+        method = "InvokeServer"
+    end
+
+    if remoteMethods[method] then
+        local vargs = {select(2, ...)}
+        local blocked = handleCall(instance, method, vargs)
+        if blocked then return end
+    end
+
+    return nmcTrampoline(...)
+end))
+
 local function checkPermission(instance)
-    if instance.ClassName then
-        -- Possibly you check className logic here, empty for now
+    if instance and instance.ClassName then
+        -- Optional permission logic (boş bırakıldı çünkü yoktu)
     end
 end
 
--- Hook individual methods
-local function setupMethodHook(instanceType, method)
+for _name, hook in pairs(methodHooks) do
     local originalMethod
-    originalMethod = hookFunction(method, newCClosure(function(self, ...)
-        if typeof(self) ~= "Instance" then
-            return originalMethod(self, ...)
+
+    originalMethod = hookFunction(hook, newCClosure(function(...)
+        local instance = ...
+        if typeOf(instance) ~= "Instance" then
+            return originalMethod(...)
         end
 
-        local success = pcall(checkPermission, self)
+        local success = pcall(checkPermission, instance)
         if not success then
-            return originalMethod(self, ...)
+            return originalMethod(...)
         end
 
-        if self.ClassName == instanceType and remotesViewing[self.ClassName] and self ~= remoteDataEvent then
-            local args = { ... }
+        if instance.ClassName == _name and isValidRemote(instance) then
+            local vargs = {select(2, ...)}
 
-            if handleRemote(self, method, args) then
-                return nil -- Block this call
-            end
+            local blocked = handleCall(instance, "Direct", vargs)
+            if blocked then return end
         end
 
-        return originalMethod(self, ...)
+        return originalMethod(...)
     end))
-
-    return originalMethod
 end
 
--- Setup all method hooks
-local function setupAllHooks()
-    setupNamecallHook()
-
-    for instanceType, method in pairs(methodHooks) do
-        local original = setupMethodHook(instanceType, method)
-        -- Example of storing original if needed later:
-        -- oh.Hooks[original] = method
-    end
-end
-
--- run setup
-setupAllHooks()
-
--- Public API
 RemoteSpy.RemotesViewing = remotesViewing
 RemoteSpy.CurrentRemotes = currentRemotes
 RemoteSpy.ConnectEvent = connectEvent
