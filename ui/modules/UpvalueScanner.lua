@@ -1,4 +1,3 @@
-
 function toString(value)
     local valueType = typeof(value)
 
@@ -27,7 +26,7 @@ local UpvalueScanner = {}
 local ClosureSpy = import("modules/ClosureSpy")
 local Methods = import("modules/UpvalueScanner")
 
-if not (Methods and Methods.RequiredMethods and hasMethods(Methods.RequiredMethods)) then
+if not (Methods and type(Methods.RequiredMethods) == "table" and hasMethods(Methods.RequiredMethods)) then
     
 local function cleanInvisibleItems()
     local clipFrame = ResultsClip.Content
@@ -278,9 +277,18 @@ end
 
 local function updateUpvalue(closureLog, upvalue)
     local upvalueLog = closureLog.Instance.Upvalues[tostring(upvalue.Index)]
-    local closure = upvalue.Closure
+    local closureData = upvalue.Closure
     local index = upvalue.Index
-    local newValue = getUpvalue(closure, index)
+    
+    if type(closureData) == "table" and closureData.Data then
+        closureData = closureData.Data
+    end
+    
+    if type(closureData) ~= "function" then
+        return
+    end
+    
+    local newValue = getUpvalue(closureData, index)
     local valueType = type(newValue)
 
     if valueType == "function" then
@@ -347,8 +355,10 @@ function Log.update(log)
         updateUpvalue(log, upvalue)
     end
     
-    for _i, upvalue in pairs(log.Closure.TemporaryUpvalues) do
-        updateUpvalue(log, upvalue)
+    if log.Closure.TemporaryUpvalues then
+        for _i, upvalue in pairs(log.Closure.TemporaryUpvalues) do
+            updateUpvalue(log, upvalue)
+        end
     end
 end
 
