@@ -1,3 +1,4 @@
+
 function toString(value)
     local valueType = typeof(value)
 
@@ -26,7 +27,7 @@ local UpvalueScanner = {}
 local ClosureSpy = import("modules/ClosureSpy")
 local Methods = import("modules/UpvalueScanner")
 
-if not hasMethods(Methods.RequiredMethods) then
+if not (Methods and Methods.RequiredMethods and hasMethods(Methods.RequiredMethods)) then
     
 local function cleanInvisibleItems()
     local clipFrame = ResultsClip.Content
@@ -128,15 +129,15 @@ local function clearAllUpvalueItems()
     local clipFrame = ResultsClip.Content
     for _, child in ipairs(clipFrame:GetChildren()) do
         if (child:IsA("Frame") or child:IsA("TextButton")) and child.Visible then
-            child:Destroy()
             local bg = (child.BackgroundColor3 or child.ImageColor3)
-if bg and (bg == constants.tempUpvalueColor or bg == constants.tempElementColor) then
-    return
-end
-
+            if bg and (bg == constants.tempUpvalueColor or bg == constants.tempElementColor) then
+                return
+            end
+            child:Destroy()
         end
     end
 end
+
 local function typeMismatchMessage()
     MessageBox.Show("Error", 
         "Value does not match selected type",
@@ -214,17 +215,15 @@ local function addUpvalue(upvalue, temporary)
         end
 
         if not temporary then
-    for i, v in pairs(upvalue.Scanned) do
-        local elementLog = addElement(upvalueLog, upvalue, i, v)
-        elementLog.Parent = upvalueLog.Elements
-        
+            for i, v in pairs(upvalue.Scanned) do
+                local elementLog = addElement(upvalueLog, upvalue, i, v)
+                elementLog.Parent = upvalueLog.Elements
 
-        task.wait()
+                task.wait()
 
-        height = height + elementLog.AbsoluteSize.Y + 5
-    end
-end
-
+                height = height + elementLog.AbsoluteSize.Y + 5
+            end
+        end
 
         upvalueLog.Size = UDim2.new(1, 0, 0, height)
     else
@@ -309,7 +308,6 @@ local function updateUpvalue(closureLog, upvalue)
     upvalue:Update(newValue)
 end
 
--- Log Object
 local Log = {}
 
 function Log.new(closure)
@@ -469,7 +467,6 @@ modifyUpvalueButtons.Set.MouseButton1Click:Connect(function()
         selectedUpvalue:Set(newValue)
 
         modifyUpvalueValue.Text = ""
-        --modifyUpvalue:Hide()
     end
 end)
 
@@ -736,6 +733,7 @@ local function cleanInvisibleItems()
         end
     end
 end
+
 upvalueList.Instance:GetPropertyChangedSignal("CanvasPosition"):Connect(cleanInvisibleItems)
 
-return UpvalueScanner 
+return UpvalueScanner
