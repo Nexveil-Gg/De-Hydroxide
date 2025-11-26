@@ -1,35 +1,4 @@
-local environment = assert(getgenv, "<OH> ~ Your exploit is not supported")()
-
-if oh then
-    oh.Exit()
-end
-
-local web = true
-local user = "nexveilggs"
-local branch = "revision"
-local importCache = {}
-
-local function hasMethods(methods)
-    for name in pairs(methods) do
-        if not environment[name] then
-            return false
-        end
-    end
-    return true
-end
-
-local function useMethods(module)
-    for name, method in pairs(module) do
-        if type(method) == "function" then
-            environment[name] = method
-        else
-            warn(("[OH] Skipped `%s` in `useMethods` because it’s not a function (got %s)"):format(tostring(name), typeof(method)))
-        end
-    end
-end
-
-if Window and PROTOSMASHER_LOADED then
-    getgenv().get_script_function = nil
+).get_script_function = nil
 end
 
 local globalMethods = {
@@ -268,3 +237,325 @@ useMethods(import("methods/table"))
 useMethods(import("methods/userdata"))
 useMethods(import("methods/environment"))
 print("de-hydroxide")
+local environment = assert(getgenv, "<OH> ~ Your exploit is not supported")()
+
+if oh then
+    oh.Exit()
+end
+
+local web = true
+local user = "nexveilggs"
+local branch = "revision"
+local importCache = {}
+
+local function hasMethods(methods)
+    for name in pairs(methods) do
+        if not environment[name] then
+            return false
+        end
+    end
+    return true
+end
+
+local function useMethods(module)
+    for name, method in pairs(module) do
+        if type(method) == "function" then
+            environment[name] = method
+        end
+    end
+end
+
+if Window and PROTOSMASHER_LOADED then
+    getgenv().get_script_function = nil
+end
+
+local globalMethods = {
+    checkCaller = checkcaller,
+    newCClosure = newcclosure,
+    hookFunction = hookfunction or detour_function,
+    getGc = getgc or get_gc_objects,
+    getInfo = debug.getinfo or getinfo,
+    getSenv = getsenv,
+    getMenv = getmenv or getsenv,
+    getContext = getthreadcontext or get_thread_context or (syn and syn.get_thread_identity),
+    getConnections = get_signal_cons or getconnections,
+    getScriptClosure = getscriptclosure or get_script_function,
+    getNamecallMethod = getnamecallmethod or get_namecall_method,
+    getCallingScript = getcallingscript or get_calling_script,
+    getLoadedModules = getloadedmodules or get_loaded_modules,
+    getConstants = debug.getconstants or getconstants or getconsts,
+    getUpvalues = debug.getupvalues or getupvalues or getupvals,
+    getProtos = debug.getprotos or getprotos,
+    getStack = debug.getstack or getstack,
+    getConstant = debug.getconstant or getconstant or getconst,
+    getUpvalue = debug.getupvalue or getupvalue or getupval,
+    getProto = debug.getproto or getproto,
+    getMetatable = getrawmetatable or debug.getmetatable,
+    getHui = get_hidden_gui or gethui,
+    setClipboard = setclipboard or writeclipboard,
+    setConstant = debug.setconstant or setconstant or setconst,
+    setContext = setthreadcontext or set_thread_context or (syn and syn.set_thread_identity),
+    setUpvalue = debug.setupvalue or setupvalue or setupval,
+    setStack = debug.setstack or setstack,
+    setReadOnly = setreadonly or (make_writeable and function(table, readonly) if readonly then make_readonly(table) else make_writeable(table) end end),
+    isLClosure = islclosure or is_l_closure or (iscclosure and function(closure) return not iscclosure(closure) end),
+    isReadOnly = isreadonly or is_readonly,
+    isXClosure = is_synapse_function or issentinelclosure or is_protosmasher_closure or is_sirhurt_closure or iselectronfunction or istempleclosure or checkclosure,
+    hookMetaMethod = hookmetamethod or (hookfunction and function(object, method, hook) return hookfunction(getMetatable(object)[method], hook) end),
+    readFile = readfile,
+    writeFile = writefile,
+    makeFolder = makefolder,
+    isFolder = isfolder,
+    isFile = isfile,
+}
+
+if PROTOSMASHER_LOADED then
+    globalMethods.getConstant = function(closure, index)
+        return globalMethods.getConstants(closure)[index]
+    end
+end
+
+local oldGetUpvalue = globalMethods.getUpvalue
+local oldGetUpvalues = globalMethods.getUpvalues
+local oldSetUpvalue = globalMethods.setUpvalue
+
+globalMethods.getUpvalue = function(closure, index)
+    if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
+        return nil
+    end
+    if type(closure) == "table" and closure.Data then
+        return oldGetUpvalue(closure.Data, index)
+    end
+    return oldGetUpvalue(closure, index)
+end
+
+globalMethods.getUpvalues = function(closure)
+    if globalMethods.isXClosure(closure) or not globalMethods.isLClosure(closure) then
+        return {}
+    end
+    if type(closure) == "table" and closure.Data then
+        return oldGetUpvalues(closure.Data)
+    end
+    return oldGetUpvalues(closure)
+end
+
+globalMethods.setUpvalue = function(closure, index, value)
+    if type(closure) == "table" and closure.Data then
+        return oldSetUpvalue(closure.Data, index, value)
+    end
+    return oldSetUpvalue(closure, index, value)
+end
+
+globalMethods.updateUpvalue = globalMethods.setUpvalue
+
+environment.hasMethods = hasMethods
+environment.oh = {
+    Events = {},
+    Hooks = {},
+    Cache = importCache,
+    Methods = globalMethods,
+    Constants = {
+        Types = {
+            ["nil"] = "rbxassetid://4800232219",
+            table = "rbxassetid://4666594276",
+            string = "rbxassetid://4666593882",
+            number = "rbxassetid://4666593882",
+            boolean = "rbxassetid://4666593882",
+            userdata = "rbxassetid://4666594723",
+            vector = "rbxassetid://4666594723",
+            ["function"] = "rbxassetid://4666593447",
+            ["thread"] = "rbxassetid://4666593447",
+            ["integral"] = "rbxassetid://4666593882"
+        },
+        Syntax = {
+            ["nil"] = Color3.fromRGB(244, 135, 113),
+            table = Color3.fromRGB(225, 225, 225),
+            string = Color3.fromRGB(225, 150, 85),
+            number = Color3.fromRGB(170, 225, 127),
+            boolean = Color3.fromRGB(127, 200, 255),
+            userdata = Color3.fromRGB(225, 225, 225),
+            vector = Color3.fromRGB(225, 225, 225),
+            ["function"] = Color3.fromRGB(225, 225, 225),
+            ["thread"] = Color3.fromRGB(225, 225, 225),
+            ["unnamed_function"] = Color3.fromRGB(175, 175, 175)
+        }
+    },
+    Exit = function()
+        for _, event in pairs(oh.Events) do
+            event:Disconnect()
+        end
+        for original, hook in pairs(oh.Hooks) do
+            if type(hook) == "function" then
+                hookFunction(hook, original)
+            elseif type(hook) == "table" then
+                hookFunction(hook.Closure.Data, hook.Original)
+            end
+        end
+        local ui = importCache["rbxassetid://11389137937"]
+        local assets = importCache["rbxassetid://5042114982"]
+        if ui then unpack(ui):Destroy() end
+        if assets then unpack(assets):Destroy() end
+    end
+}
+
+if getConnections then 
+    for _, connection in pairs(getConnections(game:GetService("ScriptContext").Error)) do
+        local conn = getrawmetatable(connection)
+        local old = conn and conn.__index
+        if conn then
+            if PROTOSMASHER_LOADED ~= nil then setwriteable(conn) else setReadOnly(conn, false) end
+            if old then
+                conn.__index = newcclosure(function(t, k)
+                    if k == "Connected" then return true end
+                    return old(t, k)
+                end)
+            end
+            if PROTOSMASHER_LOADED ~= nil then
+                setReadOnly(conn)
+                connection:Disconnect()
+            else
+                setReadOnly(conn, true)
+                connection:Disable()
+            end
+        end
+    end
+end
+
+useMethods(globalMethods)
+
+local HttpService = game:GetService("HttpService")
+
+local releaseInfo = nil
+local currentVersion = "unknown"
+
+pcall(function()
+    local response = game:HttpGetAsync("https://api.github.com/repos/" .. user .. "/De-Hydroxide/releases")
+    if response and response ~= "" then
+        local decoded = HttpService:JSONDecode(response)
+        if decoded and type(decoded) == "table" and #decoded > 0 then
+            releaseInfo = decoded[1]
+            if releaseInfo and releaseInfo.tag_name then
+                currentVersion = releaseInfo.tag_name
+            end
+        end
+    end
+end)
+
+if readFile and writeFile then
+    local hasFolderFunctions = (isFolder and makeFolder) ~= nil
+    local ran, savedVersion = pcall(readFile, "__oh_version.txt")
+    local needsUpdate = not ran or savedVersion ~= currentVersion
+
+    if needsUpdate and hasFolderFunctions then
+        local function createFolder(path)
+            pcall(function()
+                if not isFolder(path) then 
+                    makeFolder(path) 
+                end
+            end)
+        end
+        createFolder("hydroxide")
+        createFolder("hydroxide/user")
+        createFolder("hydroxide/user/" .. user)
+        createFolder("hydroxide/user/" .. user .. "/methods")
+        createFolder("hydroxide/user/" .. user .. "/modules")
+        createFolder("hydroxide/user/" .. user .. "/objects")
+        createFolder("hydroxide/user/" .. user .. "/ui")
+        createFolder("hydroxide/user/" .. user .. "/ui/controls")
+        createFolder("hydroxide/user/" .. user .. "/ui/modules")
+    end
+
+    function environment.import(asset)
+        if importCache[asset] then 
+            return unpack(importCache[asset]) 
+        end
+        
+        local assets
+        
+        if asset:find("rbxassetid://") then
+            local success, result = pcall(function()
+                return game:GetObjects(asset)[1]
+            end)
+            if success then
+                assets = { result }
+            end
+        elseif web then
+            local file
+            if hasFolderFunctions then
+                file = "hydroxide/user/" .. user .. "/" .. asset .. ".lua"
+            else
+                file = "hydroxide-" .. user .. "-" .. asset:gsub("/", "-") .. ".lua"
+            end
+            
+            local content = nil
+            local fileExists = false
+            
+            if isFile then
+                pcall(function()
+                    fileExists = isFile(file)
+                end)
+            end
+            
+            if fileExists and not needsUpdate then
+                local readSuccess, readResult = pcall(readFile, file)
+                if readSuccess then
+                    content = readResult
+                end
+            end
+            
+            if not content then
+                local httpSuccess, httpResult = pcall(function()
+                    return game:HttpGetAsync("https://raw.githubusercontent.com/" .. user .. "/De-Hydroxide/" .. branch .. "/" .. asset .. ".lua")
+                end)
+                if httpSuccess then
+                    content = httpResult
+                    pcall(function()
+                        writeFile(file, content)
+                    end)
+                end
+            end
+            
+            if content then
+                local loadSuccess, loadResult = pcall(function()
+                    return loadstring(content, asset .. ".lua")()
+                end)
+                if loadSuccess then
+                    assets = { loadResult }
+                end
+            end
+        else
+            local readSuccess, readResult = pcall(function()
+                return readFile("hydroxide/" .. asset .. ".lua")
+            end)
+            if readSuccess then
+                local loadSuccess, loadResult = pcall(function()
+                    return loadstring(readResult, asset .. ".lua")()
+                end)
+                if loadSuccess then
+                    assets = { loadResult }
+                end
+            end
+        end
+        
+        if assets then
+            importCache[asset] = assets
+            return unpack(assets)
+        end
+        
+        return nil
+    end
+
+    if currentVersion ~= "unknown" then
+        pcall(function()
+            writeFile("__oh_version.txt", currentVersion)
+        end)
+    end
+
+    useMethods({ import = environment.import })
+end
+
+pcall(function() useMethods(import("methods/string")) end)
+pcall(function() useMethods(import("methods/table")) end)
+pcall(function() useMethods(import("methods/userdata")) end)
+pcall(function() useMethods(import("methods/environment")) end)
+print("de-hydroxide loaded")
