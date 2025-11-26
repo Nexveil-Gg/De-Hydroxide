@@ -31,22 +31,24 @@ local function scan(query)
 
     for _i, v in pairs(getGc()) do
         if type(v) == "function" and not isXClosure(v) then
-            local script = rawget(getfenv(v), "script")
+            local scriptInstance = nil
+            
+            pcall(function()
+                scriptInstance = rawget(getfenv(v), "script")
+            end)
 
-            if typeof(script) == "Instance" and not scripts[script] then
-                local isScriptType = script:IsA("LocalScript") or script:IsA("Script")
-                local isNilParent = script.Parent == nil
-                local isWeirdName = hasWeirdCharacters(script.Name)
-                local matchesQuery = query == "" or script.Name:lower():find(query:lower())
+            if scriptInstance and typeof(scriptInstance) == "Instance" and not scripts[scriptInstance] then
+                local isScriptType = scriptInstance:IsA("LocalScript") or scriptInstance:IsA("Script")
                 
-                local shouldAdd = isScriptType and (isNilParent or isWeirdName or matchesQuery)
-                
-                if shouldAdd then
-                    local validClosure = pcall(function() return getScriptClosure(script) end)
-                    local validSenv = pcall(function() return getsenv(script) end)
+                if isScriptType then
+                    local isNilParent = scriptInstance.Parent == nil
+                    local isWeirdName = hasWeirdCharacters(scriptInstance.Name)
+                    local matchesQuery = query == "" or scriptInstance.Name:lower():find(query:lower())
                     
-                    if validClosure or validSenv or isNilParent then
-                        scripts[script] = LocalScript.new(script)
+                    if isNilParent or isWeirdName or matchesQuery then
+                        pcall(function()
+                            scripts[scriptInstance] = LocalScript.new(scriptInstance)
+                        end)
                     end
                 end
             end
