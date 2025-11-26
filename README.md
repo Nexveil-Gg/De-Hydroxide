@@ -1,6 +1,6 @@
 ## Script
 ```lua
-local owner = "Nexveil-Gg"
+local owner = "nexveilggs"
 local branch = "revision"
 
 local function webImport(file)
