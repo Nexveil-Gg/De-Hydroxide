@@ -3,12 +3,15 @@ local LocalScript = {}
 function LocalScript.new(instance)
     local localScript = {}
     
-    local closureSuccess, closure = pcall(function()
-        return getScriptClosure(instance)
+    local closure = nil
+    local senv = nil
+    
+    pcall(function()
+        closure = getScriptClosure(instance)
     end)
     
-    local senvSuccess, senv = pcall(function()
-        return getsenv(instance)
+    pcall(function()
+        senv = getsenv(instance)
     end)
     
     localScript.Instance = instance
@@ -20,10 +23,24 @@ function LocalScript.new(instance)
     localScript.IsNilParent = instance.Parent == nil
     localScript.HasWeirdName = LocalScript.hasWeirdCharacters(instance.Name)
     
-    localScript.Environment = senvSuccess and senv or nil
-    localScript.Closure = closureSuccess and closure or nil
-    localScript.Constants = closureSuccess and closure and getConstants(closure) or {}
-    localScript.Protos = closureSuccess and closure and getProtos(closure) or {}
+    localScript.Environment = senv
+    localScript.Closure = closure
+    
+    local constants = {}
+    local protos = {}
+    
+    if closure and type(closure) == "function" then
+        pcall(function()
+            constants = getConstants(closure)
+        end)
+        
+        pcall(function()
+            protos = getProtos(closure)
+        end)
+    end
+    
+    localScript.Constants = constants
+    localScript.Protos = protos
     
     return localScript
 end
