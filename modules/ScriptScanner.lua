@@ -1,3 +1,4 @@
+
 local ScriptScanner = {}
 local LocalScript = import("objects/LocalScript")
 
@@ -10,47 +11,22 @@ local requiredMethods = {
     ["isXClosure"] = true
 }
 
-local function hasWeirdCharacters(name)
-    if not name or name == "" then
-        return true
-    end
-    
-    for i = 1, #name do
-        local byte = string.byte(name, i)
-        if byte > 127 or byte < 32 then
-            return true
-        end
-    end
-    
-    return false
-end
-
 local function scan(query)
     local scripts = {}
     query = query or ""
 
     for _i, v in pairs(getGc()) do
         if type(v) == "function" and not isXClosure(v) then
-            local scriptInstance = nil
-            
-            pcall(function()
-                scriptInstance = rawget(getfenv(v), "script")
-            end)
+            local script = rawget(getfenv(v), "script")
 
-            if scriptInstance and typeof(scriptInstance) == "Instance" and not scripts[scriptInstance] then
-                local isScriptType = scriptInstance:IsA("LocalScript") or scriptInstance:IsA("Script")
-                
-                if isScriptType then
-                    local isNilParent = scriptInstance.Parent == nil
-                    local isWeirdName = hasWeirdCharacters(scriptInstance.Name)
-                    local matchesQuery = query == "" or scriptInstance.Name:lower():find(query:lower())
-                    
-                    if isNilParent or isWeirdName or matchesQuery then
-                        pcall(function()
-                            scripts[scriptInstance] = LocalScript.new(scriptInstance)
-                        end)
-                    end
-                end
+            if typeof(script) == "Instance" and 
+                not scripts[script] and 
+                script:IsA("LocalScript") and 
+                script.Name:lower():find(query) and
+                getScriptClosure(script) and
+                pcall(function() getsenv(script) end)
+            then
+                scripts[script] = LocalScript.new(script)
             end
         end
     end
